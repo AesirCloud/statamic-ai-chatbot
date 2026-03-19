@@ -256,133 +256,135 @@ function applyAction(action) {
                     </button>
                 </header>
 
-                <div class="message-stack">
-                    <article
-                        v-for="(message, index) in messages"
-                        :key="index"
-                        class="message"
-                        :class="[
-                            `message--${message.role}`,
-                            { 'message--degraded': message.status === 'degraded' },
-                        ]"
-                    >
-                        <div class="message-body">
-                            {{ message.content }}
-                        </div>
-
-                        <ul
-                            v-if="message.citations?.length"
-                            class="citation-list"
+                <div class="panel-body">
+                    <div class="message-stack">
+                        <article
+                            v-for="(message, index) in messages"
+                            :key="index"
+                            class="message"
+                            :class="[
+                                `message--${message.role}`,
+                                { 'message--degraded': message.status === 'degraded' },
+                            ]"
                         >
-                            <li
-                                v-for="(citation, citationIndex) in message.citations"
-                                :key="citationIndex"
+                            <div class="message-body">
+                                {{ message.content }}
+                            </div>
+
+                            <ul
+                                v-if="message.citations?.length"
+                                class="citation-list"
                             >
-                                <a
-                                    v-if="citation.url"
-                                    :href="citation.url"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
+                                <li
+                                    v-for="(citation, citationIndex) in message.citations"
+                                    :key="citationIndex"
                                 >
-                                    {{ citation.title || citation.url }}
-                                </a>
-                                <span v-else>{{ citation.title || 'Knowledge source' }}</span>
-                            </li>
-                        </ul>
-                    </article>
+                                    <a
+                                        v-if="citation.url"
+                                        :href="citation.url"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                    >
+                                        {{ citation.title || citation.url }}
+                                    </a>
+                                    <span v-else>{{ citation.title || 'Knowledge source' }}</span>
+                                </li>
+                            </ul>
+                        </article>
+                    </div>
+
+                    <div
+                        v-if="actions.length"
+                        class="actions-row"
+                    >
+                        <button
+                            v-for="(action, index) in actions"
+                            :key="index"
+                            type="button"
+                            class="action-button"
+                            @click="applyAction(action)"
+                        >
+                            {{ action.label || 'Continue' }}
+                        </button>
+                    </div>
+
+                    <form
+                        v-if="showLeadForm"
+                        class="lead-form"
+                        @submit.prevent="submitLead"
+                    >
+                        <h3>Request a follow-up</h3>
+                        <input
+                            v-model="lead.name"
+                            type="text"
+                            placeholder="Your name"
+                            required
+                            data-gramm="false"
+                            data-gramm_editor="false"
+                            data-enable-grammarly="false"
+                        >
+                        <input
+                            v-model="lead.email"
+                            type="email"
+                            placeholder="Email address"
+                            required
+                            data-gramm="false"
+                            data-gramm_editor="false"
+                            data-enable-grammarly="false"
+                        >
+                        <input
+                            v-model="lead.phone"
+                            type="text"
+                            placeholder="Phone (optional)"
+                            data-gramm="false"
+                            data-gramm_editor="false"
+                            data-enable-grammarly="false"
+                        >
+                        <textarea
+                            v-model="lead.message"
+                            rows="3"
+                            placeholder="What would you like help with?"
+                            data-gramm="false"
+                            data-gramm_editor="false"
+                            data-enable-grammarly="false"
+                        />
+                        <button
+                            type="submit"
+                            class="submit-button"
+                            :disabled="loading"
+                        >
+                            {{ loading ? 'Sending…' : 'Send my details' }}
+                        </button>
+                    </form>
+
+                    <form
+                        class="composer"
+                        @submit.prevent="sendMessage"
+                    >
+                        <textarea
+                            v-model="draft"
+                            rows="2"
+                            placeholder="Ask a question, browse FAQs, or request support…"
+                            data-gramm="false"
+                            data-gramm_editor="false"
+                            data-enable-grammarly="false"
+                        />
+                        <button
+                            type="submit"
+                            class="submit-button"
+                            :disabled="loading"
+                        >
+                            {{ loading ? 'Thinking…' : 'Send' }}
+                        </button>
+                    </form>
+
+                    <p
+                        v-if="config.privacy_notice"
+                        class="privacy-note"
+                    >
+                        {{ config.privacy_notice }}
+                    </p>
                 </div>
-
-                <div
-                    v-if="actions.length"
-                    class="actions-row"
-                >
-                    <button
-                        v-for="(action, index) in actions"
-                        :key="index"
-                        type="button"
-                        class="action-button"
-                        @click="applyAction(action)"
-                    >
-                        {{ action.label || 'Continue' }}
-                    </button>
-                </div>
-
-                <form
-                    v-if="showLeadForm"
-                    class="lead-form"
-                    @submit.prevent="submitLead"
-                >
-                    <h3>Request a follow-up</h3>
-                    <input
-                        v-model="lead.name"
-                        type="text"
-                        placeholder="Your name"
-                        required
-                        data-gramm="false"
-                        data-gramm_editor="false"
-                        data-enable-grammarly="false"
-                    >
-                    <input
-                        v-model="lead.email"
-                        type="email"
-                        placeholder="Email address"
-                        required
-                        data-gramm="false"
-                        data-gramm_editor="false"
-                        data-enable-grammarly="false"
-                    >
-                    <input
-                        v-model="lead.phone"
-                        type="text"
-                        placeholder="Phone (optional)"
-                        data-gramm="false"
-                        data-gramm_editor="false"
-                        data-enable-grammarly="false"
-                    >
-                    <textarea
-                        v-model="lead.message"
-                        rows="3"
-                        placeholder="What would you like help with?"
-                        data-gramm="false"
-                        data-gramm_editor="false"
-                        data-enable-grammarly="false"
-                    />
-                    <button
-                        type="submit"
-                        class="submit-button"
-                        :disabled="loading"
-                    >
-                        {{ loading ? 'Sending…' : 'Send my details' }}
-                    </button>
-                </form>
-
-                <form
-                    class="composer"
-                    @submit.prevent="sendMessage"
-                >
-                    <textarea
-                        v-model="draft"
-                        rows="2"
-                        placeholder="Ask a question, browse FAQs, or request support…"
-                        data-gramm="false"
-                        data-gramm_editor="false"
-                        data-enable-grammarly="false"
-                    />
-                    <button
-                        type="submit"
-                        class="submit-button"
-                        :disabled="loading"
-                    >
-                        {{ loading ? 'Thinking…' : 'Send' }}
-                    </button>
-                </form>
-
-                <p
-                    v-if="config.privacy_notice"
-                    class="privacy-note"
-                >
-                    {{ config.privacy_notice }}
-                </p>
             </section>
         </transition>
     </div>
