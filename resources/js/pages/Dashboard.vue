@@ -298,14 +298,7 @@ function normalizeSettings(settings) {
         default: 'openai',
         default_for_embeddings: 'openai',
         default_for_reranking: 'cohere',
-        providers: {},
     };
-    next.ai.providers ??= {};
-
-    (props.providerCatalog ?? []).forEach((provider) => {
-        next.ai.providers[provider.key] ??= { driver: provider.key };
-        next.ai.providers[provider.key].driver ??= provider.key;
-    });
 
     return next;
 }

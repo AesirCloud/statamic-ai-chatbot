@@ -75,21 +75,6 @@ class SaveSettingsController
             'ai.default' => ['required', 'string', Rule::in($providerKeys)],
             'ai.default_for_embeddings' => ['required', 'string', Rule::in($providerKeys)],
             'ai.default_for_reranking' => ['nullable', 'string', Rule::in($providerKeys)],
-            'ai.providers' => ['required', 'array'],
-            'ai.providers.*' => ['nullable', 'array'],
-            'ai.providers.*.driver' => ['nullable', 'string', 'max:255'],
-            'ai.providers.*.key' => ['nullable', 'string', 'max:5000'],
-            'ai.providers.*.url' => ['nullable', 'string', 'max:2000'],
-            'ai.providers.*.organization' => ['nullable', 'string', 'max:255'],
-            'ai.providers.*.project' => ['nullable', 'string', 'max:255'],
-            'ai.providers.*.version' => ['nullable', 'string', 'max:255'],
-            'ai.providers.*.anthropic_beta' => ['nullable', 'string', 'max:255'],
-            'ai.providers.*.api_version' => ['nullable', 'string', 'max:255'],
-            'ai.providers.*.deployment' => ['nullable', 'string', 'max:255'],
-            'ai.providers.*.embedding_deployment' => ['nullable', 'string', 'max:255'],
-            'ai.providers.*.site' => ['nullable', 'array'],
-            'ai.providers.*.site.http_referer' => ['nullable', 'string', 'max:2000'],
-            'ai.providers.*.site.x_title' => ['nullable', 'string', 'max:255'],
         ])->validate();
 
         $settingsRepository->save($validated);
@@ -111,7 +96,6 @@ class SaveSettingsController
             'default' => 'openai',
             'default_for_embeddings' => 'openai',
             'default_for_reranking' => 'cohere',
-            'providers' => [],
         ], Arr::get($payload, 'ai', []));
 
         $payload['ai']['default'] = filled($payload['ai']['default'] ?? null)
@@ -123,15 +107,6 @@ class SaveSettingsController
         $payload['ai']['default_for_reranking'] = filled($payload['ai']['default_for_reranking'] ?? null)
             ? $payload['ai']['default_for_reranking']
             : 'cohere';
-
-        foreach ($settingsRepository->providerCatalog() as $provider) {
-            $key = $provider['key'];
-
-            $payload['ai']['providers'][$key] = array_replace_recursive(
-                ['driver' => $key],
-                Arr::get($payload, "ai.providers.{$key}", [])
-            );
-        }
 
         return $payload;
     }

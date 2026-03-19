@@ -27,5 +27,6 @@ it('saves settings when the launcher label is updated or cleared', function () {
     $stored = ChatbotSetting::query()->firstOrFail()->payload;
 
     expect(ChatbotSetting::query()->count())->toBe(1)
-        ->and(data_get($stored, 'widget.launcher_label'))->toBe('');
+        ->and(data_get($stored, 'widget.launcher_label'))->toBe('')
+        ->and(data_get($stored, 'ai.providers'))->toBeNull();
 });

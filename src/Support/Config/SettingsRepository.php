@@ -22,7 +22,6 @@ class SettingsRepository
                 'default' => config('ai.default'),
                 'default_for_embeddings' => config('ai.default_for_embeddings'),
                 'default_for_reranking' => config('ai.default_for_reranking'),
-                'providers' => config('ai.providers', []),
             ],
         ];
     }
@@ -33,6 +32,8 @@ class SettingsRepository
      */
     public function save(array $payload): array
     {
+        $payload = $this->sanitizePayload($payload);
+
         if (! $this->tableExists()) {
             $this->apply($payload);
 
@@ -201,11 +202,6 @@ class SettingsRepository
             Arr::except($aiOverrides, ['providers'])
         );
 
-        $aiConfig['providers'] = $this->mergeProviderOverrides(
-            config('ai.providers', []),
-            $aiOverrides['providers'] ?? []
-        );
-
         config(['ai' => $aiConfig]);
     }
 
@@ -224,26 +220,14 @@ class SettingsRepository
     }
 
     /**
-     * @param  array<string, mixed>  $base
-     * @param  array<string, mixed>  $overrides
+     * @param  array<string, mixed>  $payload
      * @return array<string, mixed>
      */
-    protected function mergeProviderOverrides(array $base, array $overrides): array
+    protected function sanitizePayload(array $payload): array
     {
-        foreach ($overrides as $provider => $values) {
-            if (! is_array($values)) {
-                continue;
-            }
+        Arr::forget($payload, 'ai.providers');
 
-            $base[$provider] = array_replace_recursive(
-                $base[$provider] ?? ['driver' => $provider],
-                $values
-            );
-
-            $base[$provider]['driver'] ??= $provider;
-        }
-
-        return $base;
+        return $payload;
     }
 
     protected function tableExists(): bool
