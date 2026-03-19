@@ -151,12 +151,41 @@ class KnowledgeRetriever
             $score += $this->containsWholeWord($content, $token) ? 2.0 : 0.0;
         }
 
-        if ($tokens->intersect(['vendor', 'vendors', 'brand', 'brands'])->isNotEmpty()) {
+        if ($tokens->intersect($this->vendorIntentTokens())->isNotEmpty()) {
             $score += $handle === 'vendors' ? 10.0 : 0.0;
             $score += $type === 'taxonomy' ? 4.0 : 0.0;
+            $score += ($type === 'entry' && Str::endsWith($slug, '-brand')) ? 8.0 : 0.0;
         }
 
         return $score;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    protected function vendorIntentTokens(): array
+    {
+        return [
+            'brand',
+            'brands',
+            'carry',
+            'carries',
+            'distribute',
+            'distributor',
+            'distributors',
+            'distribution',
+            'linecard',
+            'partner',
+            'partners',
+            'provider',
+            'providers',
+            'resell',
+            'reseller',
+            'resellers',
+            'reselling',
+            'vendor',
+            'vendors',
+        ];
     }
 
     /**

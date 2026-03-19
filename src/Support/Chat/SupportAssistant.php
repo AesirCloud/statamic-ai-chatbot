@@ -119,6 +119,7 @@ class SupportAssistant
             'Only answer using the supplied FAQ or knowledge context.',
             'If the answer is not clearly supported by the context, be honest and recommend support or lead capture.',
             'Keep the tone aligned with the site brand.',
+            'When the context includes relevant brand pages, blogs, podcasts, case studies, or catalogs, briefly mention the most useful ones and include them in citations_json.',
             'Return machine-friendly JSON strings for citations_json, next_actions_json, and lead_capture_fields_json.',
             'Valid intents include: faq, support, sales, lead_capture, human_handoff.',
             filled($profile->system_prompt) ? $profile->system_prompt : null,

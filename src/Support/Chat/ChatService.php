@@ -63,8 +63,10 @@ class ChatService
         } else {
             $chunks = $this->knowledgeRetriever->search($profile, $question, $site, $locale);
             $response = $this->assistant->respond($profile, $question, $chunks);
-            $response['citations'] = $this->normalizeCitations($response['citations'] ?? [], $chunks);
-            $response['citations'] = $response['citations'] ?: $this->fallbackCitations($chunks);
+            $response['citations'] = $this->mergeCitations(
+                $this->normalizeCitations($response['citations'] ?? [], $chunks),
+                $this->fallbackCitations($chunks)
+            );
         }
 
         $response['next_actions'] = $response['next_actions'] ?: $this->handoffResolver->resolve(
@@ -321,6 +323,14 @@ class ChatService
             return null;
         }
 
+        if (Str::startsWith($citation, ['{', '['])) {
+            $decoded = json_decode($citation, true);
+
+            if (is_array($decoded)) {
+                return $this->normalizeCitation($decoded, $chunks);
+            }
+        }
+
         if (filter_var($citation, FILTER_VALIDATE_URL)) {
             $chunk = $this->resolveCitationChunk(['url' => $citation], $chunks);
 
@@ -388,7 +398,26 @@ class ChatService
                 'score' => round((float) $chunk->score, 4),
                 'driver' => data_get($chunk->metadata, 'driver'),
             ], fn ($value) => $value !== null && $value !== '');
-        })->values()->all();
+        })
+            ->unique(fn (array $citation) => ($citation['title'] ?? '').'|'.($citation['url'] ?? ''))
+            ->take((int) config('statamic-ai-chatbot.knowledge.max_chunks', 6))
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $preferred
+     * @param  array<int, array<string, mixed>>  $fallback
+     * @return array<int, array<string, mixed>>
+     */
+    protected function mergeCitations(array $preferred, array $fallback): array
+    {
+        return collect([...$preferred, ...$fallback])
+            ->filter(fn ($citation) => is_array($citation) && ($citation['title'] ?? null || $citation['url'] ?? null))
+            ->unique(fn (array $citation) => ($citation['title'] ?? '').'|'.($citation['url'] ?? ''))
+            ->take((int) config('statamic-ai-chatbot.knowledge.max_chunks', 6))
+            ->values()
+            ->all();
     }
 
     protected function citationTitleFromChunk(object $chunk): ?string

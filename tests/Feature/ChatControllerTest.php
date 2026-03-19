@@ -540,3 +540,97 @@ it('prefers brand landing page urls over taxonomy term urls in citations when bo
         ->assertJsonPath('citations.1.title', 'Fleet Device Management')
         ->assertJsonPath('citations.1.url', 'https://example.test/fleet-device-management-brand');
 });
+
+it('preserves related supporting citations from retrieved chunks when the assistant only returns one', function () {
+    $this->withoutMiddleware();
+
+    config()->set('statamic-ai-chatbot.providers.embeddings.enabled', false);
+
+    app()->instance(SupportAssistant::class, new class(app(ProviderManager::class)) extends SupportAssistant
+    {
+        public function respond(BotProfile $profile, string $message, \Illuminate\Support\Collection $chunks): array
+        {
+            return [
+                'message' => 'Yes, we work with RAM Mounts.',
+                'intent' => 'knowledge',
+                'confidence' => 93,
+                'citations' => [
+                    ['title' => 'RAM Mounts', 'url' => 'https://example.test/ram-mounts-brand'],
+                ],
+                'next_actions' => [],
+                'lead_capture_fields' => [],
+                'status' => 'ok',
+                'error_code' => null,
+            ];
+        }
+    });
+
+    $profile = BotProfile::query()->create([
+        'handle' => 'default',
+        'name' => 'Default Bot',
+        'is_default' => true,
+        'active' => true,
+        'branding' => [],
+        'provider_overrides' => [],
+        'widget_settings' => [],
+        'support_settings' => [],
+        'lead_settings' => [],
+    ]);
+
+    $source = SourceConnection::query()->create([
+        'bot_profile_id' => $profile->id,
+        'name' => 'RAM content',
+        'driver' => 'statamic',
+        'active' => true,
+        'status' => 'ready',
+    ]);
+
+    $documents = [
+        ['title' => 'RAM Mounts', 'url' => 'https://example.test/ram-mounts-brand', 'slug' => 'ram-mounts-brand'],
+        ['title' => 'RAM Mounts Laptop Replacement with Kyle Lonzak', 'url' => 'https://example.test/beyond-the-device/ram-mounts-laptop-replacement-with-kyle-lonzak', 'slug' => 'ram-mounts-laptop-replacement-with-kyle-lonzak'],
+        ['title' => 'RAM Mounts and AINA Push to Talk', 'url' => 'https://example.test/beyond-the-device/ram-mounts-and-aina-push-to-talk', 'slug' => 'ram-mounts-and-aina-push-to-talk'],
+    ];
+
+    foreach ($documents as $index => $documentData) {
+        $document = KnowledgeDocument::query()->create([
+            'bot_profile_id' => $profile->id,
+            'source_connection_id' => $source->id,
+            'driver' => 'statamic',
+            'external_id' => 'entry:'.$documentData['slug'],
+            'site' => 'default',
+            'locale' => 'default',
+            'title' => $documentData['title'],
+            'url' => $documentData['url'],
+            'metadata' => ['type' => 'entry', 'slug' => $documentData['slug']],
+            'content_hash' => sha1($documentData['slug']),
+        ]);
+
+        KnowledgeChunk::query()->create([
+            'knowledge_document_id' => $document->id,
+            'bot_profile_id' => $profile->id,
+            'site' => 'default',
+            'locale' => 'default',
+            'position' => 0,
+            'content' => $documentData['title'].' RAM related resource.',
+            'content_plain' => $documentData['title'].' RAM related resource.',
+            'metadata' => [
+                'title' => $documentData['title'],
+                'url' => $documentData['url'],
+                'driver' => 'statamic',
+                'type' => 'entry',
+                'slug' => $documentData['slug'],
+            ],
+        ]);
+    }
+
+    $this->postJson('/aesircloud/statamic-ai-chatbot/chat', [
+        'profile' => 'default',
+        'site' => 'default',
+        'message' => 'Do you work with RAM?',
+    ])
+        ->assertOk()
+        ->assertJsonCount(3, 'citations')
+        ->assertJsonPath('citations.0.title', 'RAM Mounts')
+        ->assertJsonPath('citations.1.title', 'RAM Mounts Laptop Replacement with Kyle Lonzak')
+        ->assertJsonPath('citations.2.title', 'RAM Mounts and AINA Push to Talk');
+});
