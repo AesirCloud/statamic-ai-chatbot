@@ -1,0 +1,42 @@
+{
+  "__vue-external.js": {
+    "file": "chunks/_vue-external.js",
+    "name": "_vue-external"
+  },
+  "resources/css/cp.css": {
+    "file": "cp.css",
+    "src": "resources/css/cp.css",
+    "isEntry": true,
+    "name": "cp",
+    "names": [
+      "cp.css"
+    ]
+  },
+  "resources/css/widget.css": {
+    "file": "widget.css",
+    "src": "resources/css/widget.css",
+    "isEntry": true,
+    "name": "widget",
+    "names": [
+      "widget.css"
+    ]
+  },
+  "resources/js/cp.js": {
+    "file": "cp.js",
+    "name": "cp",
+    "src": "resources/js/cp.js",
+    "isEntry": true,
+    "imports": [
+      "__vue-external.js"
+    ]
+  },
+  "resources/js/widget.js": {
+    "file": "widget.js",
+    "name": "widget",
+    "src": "resources/js/widget.js",
+    "isEntry": true,
+    "imports": [
+      "__vue-external.js"
+    ]
+  }
+}

@@ -1,0 +1,56 @@
+<?php
+
+namespace Statamic\Http\Controllers;
+
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Password;
+use Inertia\Inertia;
+use Statamic\Auth\Passwords\PasswordReset;
+use Statamic\Auth\SendsPasswordResetEmails;
+use Statamic\Exceptions\ValidationException;
+use Statamic\Facades\URL;
+use Statamic\Http\Middleware\RedirectIfAuthenticated;
+
+class ForgotPasswordController extends Controller
+{
+    use SendsPasswordResetEmails {
+        sendResetLinkEmail as public traitSendResetLinkEmail;
+    }
+
+    public function __construct()
+    {
+        $this->middleware(RedirectIfAuthenticated::class);
+    }
+
+    public function showLinkRequestForm()
+    {
+        return Inertia::render('auth/passwords/Email', [
+            'action' => cp_route('password.email'),
+            'loginUrl' => cp_route('login'),
+        ]);
+    }
+
+    public function sendResetLinkEmail(Request $request)
+    {
+        if ($url = $request->_reset_url) {
+            throw_if(URL::isExternalToApplication($url), ValidationException::withMessages([
+                '_reset_url' => trans('validation.url', ['attribute' => '_reset_url']),
+            ]));
+
+            PasswordReset::resetFormUrl(URL::makeAbsolute($url));
+        }
+
+        return $this->traitSendResetLinkEmail($request);
+    }
+
+    public function broker()
+    {
+        $broker = config('statamic.users.passwords.'.PasswordReset::BROKER_RESETS);
+
+        if (is_array($broker)) {
+            $broker = $broker['web'];
+        }
+
+        return Password::broker($broker);
+    }
+}

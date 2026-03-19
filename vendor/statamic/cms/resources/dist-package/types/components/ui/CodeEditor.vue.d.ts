@@ -1,0 +1,40 @@
+declare const _default: import("vue").DefineComponent<{}, {
+    $emit: (event: "blur" | "focus" | "update:model-value" | "update:mode", ...args: any[]) => void;
+    disabled: boolean;
+    modelValue: string;
+    readOnly: boolean;
+    allowModeSelection: boolean;
+    fieldActions: unknown[];
+    indentType: string;
+    keyMap: string;
+    lineNumbers: boolean;
+    lineWrapping: boolean;
+    mode: string;
+    rulers: Record<string, any>;
+    showModeLabel: boolean;
+    colorMode: string;
+    title?: string | undefined;
+    tabSize?: number | undefined;
+    $props: {
+        readonly disabled?: boolean | undefined;
+        readonly modelValue?: string | undefined;
+        readonly readOnly?: boolean | undefined;
+        readonly allowModeSelection?: boolean | undefined;
+        readonly fieldActions?: unknown[] | undefined;
+        readonly indentType?: string | undefined;
+        readonly keyMap?: string | undefined;
+        readonly lineNumbers?: boolean | undefined;
+        readonly lineWrapping?: boolean | undefined;
+        readonly mode?: string | undefined;
+        readonly rulers?: Record<string, any> | undefined;
+        readonly showModeLabel?: boolean | undefined;
+        readonly colorMode?: string | undefined;
+        readonly title?: string | undefined;
+        readonly tabSize?: number | undefined;
+    };
+} & {
+    toggleFullscreen: typeof toggleFullscreen;
+    fullScreenMode: import("vue").Ref<boolean, boolean>;
+}, {}, {}, {}, import("vue").ComponentOptionsMixin, import("vue").ComponentOptionsMixin, {}, string, import("vue").PublicProps, Readonly<{}> & Readonly<{}>, {}, {}, {}, {}, string, import("vue").ComponentProvideOptions, true, {}, any>;
+export default _default;
+declare function toggleFullscreen(): void;

@@ -1,0 +1,67 @@
+{
+    "name": "aesircloud/statamic-ai-chatbot",
+    "description": "AI chatbot addon for Statamic with provider switching, FAQs, leads, and knowledge retrieval.",
+    "type": "statamic-addon",
+    "keywords": [
+        "AesirCloud",
+        "statamic",
+        "addon",
+        "ai",
+        "chatbot",
+        "laravel"
+    ],
+    "authors": [
+        {
+            "name": "Greg Upton",
+            "email": "greg@aesircloud.com",
+            "homepage": "https://aesircloud.com",
+            "role": "Developer"
+        }
+    ],
+    "license": "MIT",
+    "require": {
+        "php": "^8.3",
+        "laravel/ai": "^0.3",
+        "spatie/laravel-package-tools": "^1.20",
+        "statamic/cms": "^5.0 || ^6.0"
+    },
+    "require-dev": {
+        "laravel/pint": "^1.20",
+        "orchestra/testbench": "^10.0 || ^11.0",
+        "pestphp/pest": "^4.0",
+        "pestphp/pest-plugin-laravel": "^4.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "AesirCloud\\StatamicAiChatbot\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "AesirCloud\\StatamicAiChatbot\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "test": "vendor/bin/pest",
+        "format": "vendor/bin/pint"
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "AesirCloud\\StatamicAiChatbot\\StatamicAiChatbotServiceProvider"
+            ]
+        },
+        "statamic": {
+            "name": "AI Chatbot",
+            "description": "Provider-flexible AI chatbot for Statamic sites."
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true,
+    "config": {
+        "allow-plugins": {
+            "pestphp/pest-plugin": true,
+            "pixelfear/composer-dist-plugin": true
+        }
+    }
+}
