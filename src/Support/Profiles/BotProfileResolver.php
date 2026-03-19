@@ -10,16 +10,26 @@ class BotProfileResolver
     {
         $handle ??= config('statamic-ai-chatbot.default_profile_handle', 'default');
 
-        return BotProfile::query()
+        $baseQuery = BotProfile::query()
             ->where('active', true)
             ->when($handle, fn ($query) => $query->where('handle', $handle))
-            ->when($site, fn ($query) => $query->where(function ($builder) use ($site) {
-                $builder->whereNull('site')->orWhere('site', $site);
-            }))
             ->when($locale, fn ($query) => $query->where(function ($builder) use ($locale) {
                 $builder->whereNull('locale')->orWhere('locale', $locale);
             }))
-            ->orderByDesc('is_default')
-            ->firstOrFail();
+            ->orderByDesc('is_default');
+
+        if ($site) {
+            $scopedProfile = (clone $baseQuery)
+                ->where(function ($builder) use ($site) {
+                    $builder->whereNull('site')->orWhere('site', $site);
+                })
+                ->first();
+
+            if ($scopedProfile) {
+                return $scopedProfile;
+            }
+        }
+
+        return $baseQuery->firstOrFail();
     }
 }

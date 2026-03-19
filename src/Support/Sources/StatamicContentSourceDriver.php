@@ -154,30 +154,74 @@ class StatamicContentSourceDriver implements KnowledgeSourceDriver
     {
         $handles = collect(Arr::wrap($config['taxonomies'] ?? []));
 
-        return Taxonomy::all()
+        return $this->taxonomies()
             ->filter(fn ($taxonomy) => $handles->isEmpty() || $handles->contains($taxonomy->handle()))
-            ->flatMap(fn ($taxonomy) => $taxonomy->queryTaxables()->get()->map(function ($term) use ($taxonomy, $sites) {
-                $site = method_exists($term, 'site') ? $term->site()?->handle() : null;
-
-                if ($sites->isNotEmpty() && $site && ! $sites->contains($site)) {
-                    return null;
-                }
-
-                return [
-                    'external_id' => 'taxonomy:'.$taxonomy->handle().':'.$term->id(),
-                    'site' => $site,
-                    'locale' => $site,
-                    'title' => $term->title(),
-                    'excerpt' => Str::limit(json_encode($term->data()->all(), JSON_PRETTY_PRINT) ?: '', 220),
-                    'url' => method_exists($term, 'absoluteUrl') ? $term->absoluteUrl() : null,
-                    'content' => json_encode($term->data()->all(), JSON_PRETTY_PRINT) ?: '',
-                    'metadata' => [
-                        'handle' => $taxonomy->handle(),
-                        'type' => 'taxonomy',
-                    ],
-                ];
-            }))
+            ->flatMap(fn ($taxonomy) => $taxonomy->queryTerms()->get()->flatMap(
+                fn ($term) => $this->normalizeTaxonomyTermDocuments($taxonomy, $term, $sites)
+            ))
             ->filter()
             ->values();
+    }
+
+    protected function taxonomies(): Collection
+    {
+        return Taxonomy::all();
+    }
+
+    /**
+     * @return Collection<int, array<string, mixed>>
+     */
+    protected function normalizeTaxonomyTermDocuments(object $taxonomy, object $term, Collection $sites): Collection
+    {
+        if (method_exists($term, 'localizations')) {
+            return collect($term->localizations())
+                ->filter(fn ($localizedTerm, $site) => $sites->isEmpty() || $sites->contains($site))
+                ->map(fn ($localizedTerm, $site) => $this->mapLocalizedTaxonomyDocument(
+                    $taxonomy,
+                    $localizedTerm,
+                    (string) $site,
+                    method_exists($term, 'id') ? (string) $term->id() : (string) $localizedTerm->id(),
+                ));
+        }
+
+        $site = method_exists($term, 'locale') ? (string) $term->locale() : null;
+
+        if ($site === null || (! $sites->isEmpty() && ! $sites->contains($site))) {
+            return collect();
+        }
+
+        return collect([
+            $this->mapLocalizedTaxonomyDocument(
+                $taxonomy,
+                $term,
+                $site,
+                method_exists($term, 'id') ? (string) $term->id() : $site,
+            ),
+        ]);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected function mapLocalizedTaxonomyDocument(object $taxonomy, object $localizedTerm, string $site, string $termId): array
+    {
+        $data = method_exists($localizedTerm, 'data')
+            ? $localizedTerm->data()->all()
+            : [];
+
+        return [
+            'external_id' => 'taxonomy:'.$taxonomy->handle().':'.$termId.':'.$site,
+            'site' => $site,
+            'locale' => $site,
+            'title' => method_exists($localizedTerm, 'title') ? $localizedTerm->title() : $termId,
+            'excerpt' => Str::limit(json_encode($data, JSON_PRETTY_PRINT) ?: '', 220),
+            'url' => method_exists($localizedTerm, 'absoluteUrl') ? $localizedTerm->absoluteUrl() : null,
+            'content' => json_encode($data, JSON_PRETTY_PRINT) ?: '',
+            'metadata' => [
+                'handle' => $taxonomy->handle(),
+                'slug' => method_exists($localizedTerm, 'slug') ? $localizedTerm->slug() : null,
+                'type' => 'taxonomy',
+            ],
+        ];
     }
 }

@@ -10,6 +10,7 @@ use AesirCloud\StatamicAiChatbot\Support\Knowledge\KnowledgeRetriever;
 use AesirCloud\StatamicAiChatbot\Support\Profiles\BotProfileResolver;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
+use Statamic\Facades\Site;
 
 class ChatService
 {
@@ -36,8 +37,8 @@ class ChatService
 
         $conversation = $this->conversation($profile->id, $payload);
         $question = (string) Arr::get($payload, 'message', '');
-        $site = Arr::get($payload, 'site') ?: $profile->site;
-        $locale = Arr::get($payload, 'locale') ?: $profile->locale;
+        $site = $this->resolveSiteHandle(Arr::get($payload, 'site') ?: $profile->site);
+        $locale = $this->resolveLocaleHandle(Arr::get($payload, 'locale') ?: $profile->locale, $site);
 
         $this->storeMessage($conversation, 'user', $question);
 
@@ -129,5 +130,33 @@ class ChatService
             'citations' => $structured['citations'] ?? null,
             'metadata' => Arr::only($structured, ['intent', 'confidence', 'status', 'error_code', 'next_actions']),
         ]);
+    }
+
+    protected function resolveSiteHandle(?string $site): ?string
+    {
+        if ($site && ! str_contains($site, '.')) {
+            return $site;
+        }
+
+        return rescue(
+            fn () => ($site && Site::get($site))
+                ? $site
+                : (Site::current()?->handle() ?? Site::default()?->handle() ?? $site),
+            $site,
+            false
+        );
+    }
+
+    protected function resolveLocaleHandle(?string $locale, ?string $site): ?string
+    {
+        if ($locale && ! str_contains($locale, '.')) {
+            return $locale;
+        }
+
+        return rescue(
+            fn () => ($locale && Site::get($locale)) ? $locale : $site,
+            $site,
+            false
+        );
     }
 }
