@@ -104,6 +104,18 @@ async function parseJsonResponse(response) {
     return payload;
 }
 
+function assistantContent(payload) {
+    if (payload?.status === 'degraded') {
+        if (payload?.error_code === 'ai_provider_misconfigured') {
+            return payload.message || 'I am having trouble with the AI setup right now. You can still contact support or leave your details for a follow-up.';
+        }
+
+        return payload.message || 'I am having trouble reaching the AI assistant right now. You can still contact support or leave your details for a follow-up.';
+    }
+
+    return payload?.message || 'I ran into an issue answering that. You can still contact support or leave your details for a follow-up.';
+}
+
 async function sendMessage() {
     if (!draft.value.trim() || loading.value) {
         return;
@@ -142,7 +154,9 @@ async function sendMessage() {
 
         messages.value.push({
             role: 'assistant',
-            content: payload.message,
+            content: assistantContent(payload),
+            status: payload.status ?? 'ok',
+            errorCode: payload.error_code ?? null,
             citations: payload.citations ?? [],
         });
     } catch (error) {
@@ -247,7 +261,10 @@ function applyAction(action) {
                         v-for="(message, index) in messages"
                         :key="index"
                         class="message"
-                        :class="`message--${message.role}`"
+                        :class="[
+                            `message--${message.role}`,
+                            { 'message--degraded': message.status === 'degraded' },
+                        ]"
                     >
                         <div class="message-body">
                             {{ message.content }}

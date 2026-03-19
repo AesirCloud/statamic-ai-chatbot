@@ -8,6 +8,21 @@ return [
             'driver' => env('STATAMIC_AI_CHATBOT_TEXT_PROVIDER', 'openai'),
             'model' => env('STATAMIC_AI_CHATBOT_TEXT_MODEL', 'gpt-5-mini'),
         ],
+        'text_fallbacks' => (static function (): array {
+            $fallbacks = env('STATAMIC_AI_CHATBOT_TEXT_FALLBACKS', []);
+
+            if (is_array($fallbacks)) {
+                return $fallbacks;
+            }
+
+            if (! is_string($fallbacks) || trim($fallbacks) === '') {
+                return [];
+            }
+
+            $decoded = json_decode($fallbacks, true);
+
+            return is_array($decoded) ? $decoded : [];
+        })(),
         'embeddings' => [
             'driver' => env('STATAMIC_AI_CHATBOT_EMBEDDINGS_PROVIDER', 'openai'),
             'model' => env('STATAMIC_AI_CHATBOT_EMBEDDINGS_MODEL', 'text-embedding-3-small'),

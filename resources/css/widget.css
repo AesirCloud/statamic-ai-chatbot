@@ -120,6 +120,11 @@
     color: #13322b;
 }
 
+.message--assistant.message--degraded .message-body {
+    background: rgba(244, 162, 97, 0.18);
+    color: #55351d;
+}
+
 .message--user .message-body {
     background: linear-gradient(135deg, var(--chatbot-primary), color-mix(in srgb, var(--chatbot-primary) 75%, black));
     color: white;

@@ -48,6 +48,8 @@ class ChatService
                 'message' => $faq->answer,
                 'intent' => 'faq',
                 'confidence' => 96,
+                'status' => 'ok',
+                'error_code' => null,
                 'citations' => [[
                     'title' => $faq->question,
                     'type' => 'faq',
@@ -82,6 +84,8 @@ class ChatService
             'message' => $response['message'],
             'intent' => $response['intent'],
             'confidence' => $response['confidence'],
+            'status' => $response['status'] ?? 'ok',
+            'error_code' => $response['error_code'] ?? null,
             'citations' => $response['citations'],
             'next_actions' => $response['next_actions'],
             'lead_capture_fields' => $response['lead_capture_fields'],
@@ -123,7 +127,7 @@ class ChatService
             'content' => $content,
             'structured_output' => $structured ?: null,
             'citations' => $structured['citations'] ?? null,
-            'metadata' => Arr::only($structured, ['intent', 'confidence', 'next_actions']),
+            'metadata' => Arr::only($structured, ['intent', 'confidence', 'status', 'error_code', 'next_actions']),
         ]);
     }
 }

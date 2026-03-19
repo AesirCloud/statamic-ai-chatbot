@@ -5,6 +5,7 @@ it('defines provider defaults', function () {
 
     expect($config)
         ->toHaveKey('providers.text.driver')
+        ->toHaveKey('providers.text_fallbacks')
         ->toHaveKey('providers.embeddings.enabled')
         ->toHaveKey('widget.position');
 });
