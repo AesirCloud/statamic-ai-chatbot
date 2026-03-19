@@ -275,6 +275,10 @@ function normalizeSettings(settings) {
         welcome_message: 'Ask a question, browse FAQs, or reach support.',
         primary_color: '#0f766e',
         accent_color: '#f4a261',
+        button_text_color: '#14362f',
+        surface_color: '#f1f4f5',
+        surface_text_color: '#5b6670',
+        border_color: '#d9e0e3',
         support_hours: '',
         privacy_notice: '',
         logo_url: '',
@@ -336,6 +340,10 @@ function defaultProfileForm(profileId = null) {
             welcome_message: '',
             primary_color: '',
             accent_color: '',
+            button_text_color: '',
+            surface_color: '',
+            surface_text_color: '',
+            border_color: '',
             support_hours: '',
             privacy_notice: '',
             logo_url: '',
@@ -1141,6 +1149,32 @@ async function saveSettings() {
                             <input v-model="settingsForm.widget.accent_color" type="color">
                         </label>
                     </div>
+
+                    <div class="field-grid field-grid--4">
+                        <label class="field">
+                            <span>Button text color</span>
+                            <input v-model="settingsForm.widget.button_text_color" type="color">
+                        </label>
+
+                        <label class="field">
+                            <span>Muted surface color</span>
+                            <input v-model="settingsForm.widget.surface_color" type="color">
+                        </label>
+
+                        <label class="field">
+                            <span>Muted text color</span>
+                            <input v-model="settingsForm.widget.surface_text_color" type="color">
+                        </label>
+
+                        <label class="field">
+                            <span>Muted border color</span>
+                            <input v-model="settingsForm.widget.border_color" type="color">
+                        </label>
+                    </div>
+
+                    <p class="field-note">
+                        These colors control the main send buttons plus the softer assistant bubbles, chips, and citations.
+                    </p>
 
                     <div class="field-grid field-grid--2">
                         <label class="field">

@@ -4,6 +4,7 @@ namespace AesirCloud\StatamicAiChatbot\Support\Config;
 
 use AesirCloud\StatamicAiChatbot\Models\BotProfile;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
 
 class ProviderManager
 {
@@ -13,10 +14,14 @@ class ProviderManager
     public function forText(?BotProfile $profile = null): array
     {
         $overrides = data_get($profile?->provider_overrides, 'text', []);
+        $driver = $this->normalizeDriver($overrides['driver'] ?? config('statamic-ai-chatbot.providers.text.driver'));
 
         return [
-            'driver' => (string) ($overrides['driver'] ?? config('statamic-ai-chatbot.providers.text.driver')),
-            'model' => $this->nullableString($overrides['model'] ?? config('statamic-ai-chatbot.providers.text.model')),
+            'driver' => $driver,
+            'model' => $this->normalizeModelIdentifier(
+                $driver,
+                $overrides['model'] ?? config('statamic-ai-chatbot.providers.text.model')
+            ),
         ];
     }
 
@@ -26,10 +31,14 @@ class ProviderManager
     public function forEmbeddings(?BotProfile $profile = null): array
     {
         $overrides = data_get($profile?->provider_overrides, 'embeddings', []);
+        $driver = $this->normalizeDriver($overrides['driver'] ?? config('statamic-ai-chatbot.providers.embeddings.driver'));
 
         return [
-            'driver' => (string) ($overrides['driver'] ?? config('statamic-ai-chatbot.providers.embeddings.driver')),
-            'model' => $this->nullableString($overrides['model'] ?? config('statamic-ai-chatbot.providers.embeddings.model')),
+            'driver' => $driver,
+            'model' => $this->normalizeModelIdentifier(
+                $driver,
+                $overrides['model'] ?? config('statamic-ai-chatbot.providers.embeddings.model')
+            ),
             'dimensions' => (int) ($overrides['dimensions'] ?? config('statamic-ai-chatbot.providers.embeddings.dimensions', 1536)),
             'enabled' => (bool) ($overrides['enabled'] ?? config('statamic-ai-chatbot.providers.embeddings.enabled', true)),
         ];
@@ -68,7 +77,46 @@ class ProviderManager
 
         return [
             'driver' => $driver,
-            'model' => $this->nullableString($candidate['model'] ?? null),
+            'model' => $this->normalizeModelIdentifier($driver, $candidate['model'] ?? null),
+        ];
+    }
+
+    protected function normalizeDriver(mixed $value): string
+    {
+        return Str::lower((string) ($this->nullableString($value) ?? ''));
+    }
+
+    protected function normalizeModelIdentifier(string $driver, mixed $value): ?string
+    {
+        $model = $this->nullableString($value);
+
+        if ($model === null) {
+            return null;
+        }
+
+        if (in_array($driver, $this->caseInsensitiveModelDrivers(), true)) {
+            return Str::lower($model);
+        }
+
+        return $model;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    protected function caseInsensitiveModelDrivers(): array
+    {
+        return [
+            'openai',
+            'anthropic',
+            'gemini',
+            'xai',
+            'groq',
+            'openrouter',
+            'cohere',
+            'voyageai',
+            'deepseek',
+            'mistral',
         ];
     }
 

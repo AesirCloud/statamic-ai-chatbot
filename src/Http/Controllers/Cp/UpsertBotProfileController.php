@@ -8,6 +8,7 @@ use AesirCloud\StatamicAiChatbot\Support\Config\SettingsRepository;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 class UpsertBotProfileController
@@ -73,7 +74,9 @@ class UpsertBotProfileController
                 'is_default' => $validated['is_default'],
                 'active' => $validated['active'],
                 'branding' => $this->stripNullValues(Arr::get($validated, 'branding', [])),
-                'provider_overrides' => $this->stripNullValues(Arr::get($validated, 'provider_overrides', [])),
+                'provider_overrides' => $this->normalizeProviderOverrides(
+                    $this->stripNullValues(Arr::get($validated, 'provider_overrides', []))
+                ),
                 'widget_settings' => $this->stripNullValues(Arr::get($validated, 'widget_settings', [])),
                 'support_settings' => $this->stripNullValues(Arr::get($validated, 'support_settings', [])),
                 'lead_settings' => $this->stripNullValues(Arr::get($validated, 'lead_settings', [])),
@@ -115,5 +118,35 @@ class UpsertBotProfileController
             })
             ->reject(fn ($value) => $value === null)
             ->all();
+    }
+
+    protected function normalizeProviderOverrides(array $overrides): array
+    {
+        foreach (['text', 'embeddings'] as $channel) {
+            $driver = Str::lower((string) Arr::get($overrides, "{$channel}.driver", ''));
+            $model = Arr::get($overrides, "{$channel}.model");
+
+            if ($this->shouldNormalizeModelIdentifier($driver) && is_string($model) && trim($model) !== '') {
+                Arr::set($overrides, "{$channel}.model", Str::lower(trim($model)));
+            }
+        }
+
+        return $overrides;
+    }
+
+    protected function shouldNormalizeModelIdentifier(string $driver): bool
+    {
+        return in_array($driver, [
+            'openai',
+            'anthropic',
+            'gemini',
+            'xai',
+            'groq',
+            'openrouter',
+            'cohere',
+            'voyageai',
+            'deepseek',
+            'mistral',
+        ], true);
     }
 }

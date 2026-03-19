@@ -26,8 +26,11 @@ use AesirCloud\StatamicAiChatbot\Support\Sources\StatamicContentSourceDriver;
 use AesirCloud\StatamicAiChatbot\Support\Sources\YouTubeSourceDriver;
 use AesirCloud\StatamicAiChatbot\Tags\ChatbotWidgetTag;
 use Illuminate\Console\Scheduling\Schedule;
+use Illuminate\Filesystem\Filesystem;
+use Illuminate\Support\Facades\Log;
 use Statamic\Facades\Utility;
 use Statamic\Providers\AddonServiceProvider;
+use Throwable;
 
 class StatamicAiChatbotServiceProvider extends AddonServiceProvider
 {
@@ -90,6 +93,7 @@ class StatamicAiChatbotServiceProvider extends AddonServiceProvider
     public function bootAddon(): void
     {
         $this->app->make(SettingsRepository::class)->apply();
+        $this->ensurePublishedAssets();
 
         $this->loadViewsFrom(__DIR__.'/../resources/views', 'aesircloud-statamic-ai-chatbot');
         $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
@@ -115,5 +119,77 @@ class StatamicAiChatbotServiceProvider extends AddonServiceProvider
             $schedule->command('statamic-ai-chatbot:sync')->hourly();
             $schedule->command('statamic-ai-chatbot:prune')->dailyAt('01:00');
         });
+    }
+
+    protected function ensurePublishedAssets(): void
+    {
+        if ($this->app->runningUnitTests()) {
+            return;
+        }
+
+        $source = realpath(__DIR__.'/../public/build');
+        $target = public_path('vendor/statamic-ai-chatbot/build');
+
+        if (! $source || ! is_dir($source)) {
+            return;
+        }
+
+        try {
+            if ($this->publishedAssetsAreCurrent($source, $target)) {
+                return;
+            }
+
+            /** @var Filesystem $files */
+            $files = $this->app->make(Filesystem::class);
+
+            $files->ensureDirectoryExists(dirname($target));
+            $files->deleteDirectory($target);
+            $files->copyDirectory($source, $target);
+        } catch (Throwable $exception) {
+            Log::warning('Statamic AI chatbot could not sync published assets automatically.', [
+                'exception_class' => $exception::class,
+                'exception_message' => $exception->getMessage(),
+            ]);
+        }
+    }
+
+    protected function publishedAssetsAreCurrent(string $source, string $target): bool
+    {
+        if (! is_dir($target)) {
+            return false;
+        }
+
+        foreach ($this->assetManifest($source) as $relativePath => $sourcePath) {
+            $targetPath = $target.DIRECTORY_SEPARATOR.$relativePath;
+
+            if (! is_file($targetPath)) {
+                return false;
+            }
+
+            if (filesize($sourcePath) !== filesize($targetPath)) {
+                return false;
+            }
+
+            if (sha1_file($sourcePath) !== sha1_file($targetPath)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    protected function assetManifest(string $source): array
+    {
+        /** @var Filesystem $files */
+        $files = $this->app->make(Filesystem::class);
+
+        return collect($files->allFiles($source))
+            ->mapWithKeys(fn ($file) => [
+                str_replace($source.DIRECTORY_SEPARATOR, '', $file->getPathname()) => $file->getPathname(),
+            ])
+            ->all();
     }
 }

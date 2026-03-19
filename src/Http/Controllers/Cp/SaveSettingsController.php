@@ -7,6 +7,7 @@ use AesirCloud\StatamicAiChatbot\Support\Config\SettingsRepository;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Validator;
 
@@ -50,6 +51,10 @@ class SaveSettingsController
             'widget.welcome_message' => ['nullable', 'string', 'max:2000'],
             'widget.primary_color' => ['nullable', 'string', 'max:32'],
             'widget.accent_color' => ['nullable', 'string', 'max:32'],
+            'widget.button_text_color' => ['nullable', 'string', 'max:32'],
+            'widget.surface_color' => ['nullable', 'string', 'max:32'],
+            'widget.surface_text_color' => ['nullable', 'string', 'max:32'],
+            'widget.border_color' => ['nullable', 'string', 'max:32'],
             'widget.support_hours' => ['nullable', 'string', 'max:255'],
             'widget.privacy_notice' => ['nullable', 'string', 'max:2000'],
             'widget.logo_url' => ['nullable', 'string', 'max:2000'],
@@ -108,6 +113,31 @@ class SaveSettingsController
             ? $payload['ai']['default_for_reranking']
             : 'cohere';
 
+        foreach (['text', 'embeddings', 'reranking'] as $channel) {
+            $driver = Str::lower((string) Arr::get($payload, "providers.{$channel}.driver", ''));
+            $model = Arr::get($payload, "providers.{$channel}.model");
+
+            if ($this->shouldNormalizeModelIdentifier($driver) && is_string($model) && trim($model) !== '') {
+                Arr::set($payload, "providers.{$channel}.model", Str::lower(trim($model)));
+            }
+        }
+
         return $payload;
+    }
+
+    protected function shouldNormalizeModelIdentifier(string $driver): bool
+    {
+        return in_array($driver, [
+            'openai',
+            'anthropic',
+            'gemini',
+            'xai',
+            'groq',
+            'openrouter',
+            'cohere',
+            'voyageai',
+            'deepseek',
+            'mistral',
+        ], true);
     }
 }

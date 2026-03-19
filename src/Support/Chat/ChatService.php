@@ -4,11 +4,13 @@ namespace AesirCloud\StatamicAiChatbot\Support\Chat;
 
 use AesirCloud\StatamicAiChatbot\Contracts\SupportHandoffResolver;
 use AesirCloud\StatamicAiChatbot\Models\ChatConversation;
+use AesirCloud\StatamicAiChatbot\Models\KnowledgeDocument;
 use AesirCloud\StatamicAiChatbot\Models\ChatMessage;
 use AesirCloud\StatamicAiChatbot\Support\Knowledge\FaqMatcher;
 use AesirCloud\StatamicAiChatbot\Support\Knowledge\KnowledgeRetriever;
 use AesirCloud\StatamicAiChatbot\Support\Profiles\BotProfileResolver;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use Statamic\Facades\Site;
 
@@ -61,14 +63,8 @@ class ChatService
         } else {
             $chunks = $this->knowledgeRetriever->search($profile, $question, $site, $locale);
             $response = $this->assistant->respond($profile, $question, $chunks);
-            $response['citations'] = $response['citations'] ?: $chunks->map(function ($chunk) {
-                return [
-                    'title' => data_get($chunk->metadata, 'title', 'Knowledge base'),
-                    'url' => data_get($chunk->metadata, 'url'),
-                    'score' => round((float) $chunk->score, 4),
-                    'driver' => data_get($chunk->metadata, 'driver'),
-                ];
-            })->values()->all();
+            $response['citations'] = $this->normalizeCitations($response['citations'] ?? [], $chunks);
+            $response['citations'] = $response['citations'] ?: $this->fallbackCitations($chunks);
         }
 
         $response['next_actions'] = $response['next_actions'] ?: $this->handoffResolver->resolve(
@@ -249,5 +245,212 @@ class ChatService
         $value = is_string($value) ? trim($value) : null;
 
         return filled($value) ? $value : null;
+    }
+
+    /**
+     * @param  mixed  $citations
+     * @param  Collection<int, \AesirCloud\StatamicAiChatbot\Models\KnowledgeChunk>  $chunks
+     * @return array<int, array<string, mixed>>
+     */
+    protected function normalizeCitations(mixed $citations, Collection $chunks): array
+    {
+        return collect(Arr::wrap($citations))
+            ->map(fn ($citation) => $this->normalizeCitation($citation, $chunks))
+            ->filter()
+            ->unique(fn (array $citation) => ($citation['title'] ?? '').'|'.($citation['url'] ?? ''))
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  mixed  $citation
+     * @param  Collection<int, \AesirCloud\StatamicAiChatbot\Models\KnowledgeChunk>  $chunks
+     * @return array<string, mixed>|null
+     */
+    protected function normalizeCitation(mixed $citation, Collection $chunks): ?array
+    {
+        if (is_string($citation)) {
+            return $this->normalizeCitationString($citation, $chunks);
+        }
+
+        if (! is_array($citation)) {
+            return null;
+        }
+
+        $chunk = $this->resolveCitationChunk($citation, $chunks);
+        $url = $this->filledString(
+            Arr::get($citation, 'url')
+            ?? Arr::get($citation, 'href')
+            ?? Arr::get($citation, 'link')
+            ?? Arr::get($citation, 'value')
+        );
+
+        if ($url && ! filter_var($url, FILTER_VALIDATE_URL)) {
+            $url = null;
+        }
+
+        $title = $this->filledString(
+            Arr::get($citation, 'title')
+            ?? Arr::get($citation, 'label')
+            ?? Arr::get($citation, 'name')
+        );
+
+        $title ??= $chunk ? $this->citationTitleFromChunk($chunk) : null;
+        $url ??= $chunk ? $this->citationUrlFromChunk($chunk) : null;
+        $title ??= $url ? $this->humanizeCitationUrl($url) : null;
+
+        if (! $title && ! $url) {
+            return null;
+        }
+
+        return array_filter([
+            'title' => $title,
+            'url' => $url,
+        ], fn ($value) => $value !== null && $value !== '');
+    }
+
+    /**
+     * @param  Collection<int, \AesirCloud\StatamicAiChatbot\Models\KnowledgeChunk>  $chunks
+     * @return array<string, mixed>|null
+     */
+    protected function normalizeCitationString(string $citation, Collection $chunks): ?array
+    {
+        $citation = trim($citation);
+
+        if ($citation === '') {
+            return null;
+        }
+
+        if (filter_var($citation, FILTER_VALIDATE_URL)) {
+            $chunk = $this->resolveCitationChunk(['url' => $citation], $chunks);
+
+            return array_filter([
+                'title' => $chunk ? $this->citationTitleFromChunk($chunk) : $this->humanizeCitationUrl($citation),
+                'url' => $chunk ? ($this->citationUrlFromChunk($chunk) ?? $citation) : $citation,
+            ], fn ($value) => $value !== null && $value !== '');
+        }
+
+        return ['title' => $citation];
+    }
+
+    /**
+     * @param  array<string, mixed>  $citation
+     * @param  Collection<int, \AesirCloud\StatamicAiChatbot\Models\KnowledgeChunk>  $chunks
+     */
+    protected function resolveCitationChunk(array $citation, Collection $chunks): ?object
+    {
+        $url = $this->filledString(
+            Arr::get($citation, 'url')
+            ?? Arr::get($citation, 'href')
+            ?? Arr::get($citation, 'link')
+            ?? Arr::get($citation, 'value')
+        );
+
+        if ($url && filter_var($url, FILTER_VALIDATE_URL)) {
+            $normalizedUrl = rtrim($url, '/');
+
+            $match = $chunks->first(function ($chunk) use ($normalizedUrl) {
+                $chunkUrl = rtrim((string) data_get($chunk->metadata, 'url', ''), '/');
+
+                return $chunkUrl !== '' && $chunkUrl === $normalizedUrl;
+            });
+
+            if ($match) {
+                return $match;
+            }
+        }
+
+        $sourceIndex = Arr::get($citation, 'source')
+            ?? Arr::get($citation, 'source_number')
+            ?? Arr::get($citation, 'source_index')
+            ?? Arr::get($citation, 'index')
+            ?? Arr::get($citation, 'ref');
+
+        if (is_numeric($sourceIndex)) {
+            $numericIndex = (int) $sourceIndex;
+
+            return $chunks->values()->get($numericIndex > 0 ? $numericIndex - 1 : $numericIndex);
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  Collection<int, \AesirCloud\StatamicAiChatbot\Models\KnowledgeChunk>  $chunks
+     * @return array<int, array<string, mixed>>
+     */
+    protected function fallbackCitations(Collection $chunks): array
+    {
+        return $chunks->map(function ($chunk) {
+            return array_filter([
+                'title' => $this->citationTitleFromChunk($chunk) ?? 'Knowledge base',
+                'url' => $this->citationUrlFromChunk($chunk),
+                'score' => round((float) $chunk->score, 4),
+                'driver' => data_get($chunk->metadata, 'driver'),
+            ], fn ($value) => $value !== null && $value !== '');
+        })->values()->all();
+    }
+
+    protected function citationTitleFromChunk(object $chunk): ?string
+    {
+        if ($canonical = $this->canonicalCitationDocument($chunk)) {
+            return $this->filledString($canonical->title);
+        }
+
+        return $this->filledString(
+            data_get($chunk->metadata, 'title')
+            ?? data_get($chunk, 'document.title')
+        );
+    }
+
+    protected function citationUrlFromChunk(object $chunk): ?string
+    {
+        if ($canonical = $this->canonicalCitationDocument($chunk)) {
+            return $this->filledString($canonical->url);
+        }
+
+        return $this->filledString(
+            data_get($chunk->metadata, 'url')
+            ?? data_get($chunk, 'document.url')
+        );
+    }
+
+    protected function canonicalCitationDocument(object $chunk): ?KnowledgeDocument
+    {
+        $type = $this->filledString((string) data_get($chunk->metadata, 'type', ''));
+
+        if ($type !== 'taxonomy') {
+            return null;
+        }
+
+        $title = $this->filledString(
+            data_get($chunk->metadata, 'title')
+            ?? data_get($chunk, 'document.title')
+        );
+
+        if (! $title) {
+            return null;
+        }
+
+        return KnowledgeDocument::query()
+            ->where('bot_profile_id', data_get($chunk, 'bot_profile_id'))
+            ->where('site', data_get($chunk, 'site'))
+            ->where('locale', data_get($chunk, 'locale'))
+            ->where('title', $title)
+            ->get()
+            ->first(function (KnowledgeDocument $document) {
+                return data_get($document->metadata, 'type') === 'entry' && filled($document->url);
+            });
+    }
+
+    protected function humanizeCitationUrl(string $url): string
+    {
+        $path = trim((string) parse_url($url, PHP_URL_PATH), '/');
+
+        if ($path === '') {
+            return $url;
+        }
+
+        return Str::headline(str_replace('/', ' ', Str::afterLast($path, '/')));
     }
 }

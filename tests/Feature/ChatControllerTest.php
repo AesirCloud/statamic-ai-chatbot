@@ -243,3 +243,300 @@ it('normalizes assistant action payloads into clickable widget actions', functio
         ->assertJsonPath('next_actions.2.type', 'prompt')
         ->assertJsonPath('next_actions.2.value', 'Tell me which RAM Mounts product you need help with.');
 });
+
+it('normalizes ai citation payloads into titled links before rendering them to the widget', function () {
+    $this->withoutMiddleware();
+
+    config()->set('statamic-ai-chatbot.providers.embeddings.enabled', false);
+
+    app()->instance(SupportAssistant::class, new class(app(ProviderManager::class)) extends SupportAssistant
+    {
+        public function respond(BotProfile $profile, string $message, \Illuminate\Support\Collection $chunks): array
+        {
+            return [
+                'message' => 'Here are our MDM vendors.',
+                'intent' => 'knowledge',
+                'confidence' => 91,
+                'citations' => [
+                    'https://example.test/vendors/safeuem',
+                    ['source' => 2],
+                    [],
+                ],
+                'next_actions' => [],
+                'lead_capture_fields' => [],
+                'status' => 'ok',
+                'error_code' => null,
+            ];
+        }
+    });
+
+    $profile = BotProfile::query()->create([
+        'handle' => 'default',
+        'name' => 'Default Bot',
+        'is_default' => true,
+        'active' => true,
+        'branding' => [],
+        'provider_overrides' => [],
+        'widget_settings' => [],
+        'support_settings' => [],
+        'lead_settings' => [],
+    ]);
+
+    $source = SourceConnection::query()->create([
+        'bot_profile_id' => $profile->id,
+        'name' => 'Vendors',
+        'driver' => 'statamic',
+        'active' => true,
+        'status' => 'ready',
+    ]);
+
+    $safeuem = KnowledgeDocument::query()->create([
+        'bot_profile_id' => $profile->id,
+        'source_connection_id' => $source->id,
+        'driver' => 'statamic',
+        'external_id' => 'entry:safeuem',
+        'site' => 'default',
+        'locale' => 'default',
+        'title' => 'SafeUEM',
+        'url' => 'https://example.test/vendors/safeuem',
+        'metadata' => ['type' => 'entry', 'slug' => 'safeuem'],
+        'content_hash' => sha1('safeuem'),
+    ]);
+
+    $fleet = KnowledgeDocument::query()->create([
+        'bot_profile_id' => $profile->id,
+        'source_connection_id' => $source->id,
+        'driver' => 'statamic',
+        'external_id' => 'entry:fleet-device-management',
+        'site' => 'default',
+        'locale' => 'default',
+        'title' => 'Fleet Device Management',
+        'url' => 'https://example.test/vendors/fleet-device-management',
+        'metadata' => ['type' => 'entry', 'slug' => 'fleet-device-management'],
+        'content_hash' => sha1('fleet'),
+    ]);
+
+    KnowledgeChunk::query()->create([
+        'knowledge_document_id' => $safeuem->id,
+        'bot_profile_id' => $profile->id,
+        'site' => 'default',
+        'locale' => 'default',
+        'position' => 0,
+        'content' => 'SafeUEM is one of our MDM vendors.',
+        'content_plain' => 'SafeUEM is one of our MDM vendors.',
+        'metadata' => [
+            'title' => 'SafeUEM',
+            'url' => 'https://example.test/vendors/safeuem',
+            'driver' => 'statamic',
+            'type' => 'entry',
+            'slug' => 'safeuem',
+        ],
+    ]);
+
+    KnowledgeChunk::query()->create([
+        'knowledge_document_id' => $fleet->id,
+        'bot_profile_id' => $profile->id,
+        'site' => 'default',
+        'locale' => 'default',
+        'position' => 0,
+        'content' => 'Fleet Device Management is one of our MDM vendors.',
+        'content_plain' => 'Fleet Device Management is one of our MDM vendors.',
+        'metadata' => [
+            'title' => 'Fleet Device Management',
+            'url' => 'https://example.test/vendors/fleet-device-management',
+            'driver' => 'statamic',
+            'type' => 'entry',
+            'slug' => 'fleet-device-management',
+        ],
+    ]);
+
+    $this->postJson('/aesircloud/statamic-ai-chatbot/chat', [
+        'profile' => 'default',
+        'site' => 'default',
+        'message' => 'Do you have any MDM vendors?',
+    ])
+        ->assertOk()
+        ->assertJsonPath('citations.0.title', 'SafeUEM')
+        ->assertJsonPath('citations.0.url', 'https://example.test/vendors/safeuem')
+        ->assertJsonPath('citations.1.title', 'Fleet Device Management')
+        ->assertJsonPath('citations.1.url', 'https://example.test/vendors/fleet-device-management');
+});
+
+it('prefers brand landing page urls over taxonomy term urls in citations when both are indexed', function () {
+    $this->withoutMiddleware();
+
+    config()->set('statamic-ai-chatbot.providers.embeddings.enabled', false);
+
+    app()->instance(SupportAssistant::class, new class(app(ProviderManager::class)) extends SupportAssistant
+    {
+        public function respond(BotProfile $profile, string $message, \Illuminate\Support\Collection $chunks): array
+        {
+            return [
+                'message' => 'Here are our MDM vendors.',
+                'intent' => 'knowledge',
+                'confidence' => 90,
+                'citations' => [
+                    'https://example.test/vendors/safeuem',
+                    'https://example.test/vendors/fleet-device-management',
+                ],
+                'next_actions' => [],
+                'lead_capture_fields' => [],
+                'status' => 'ok',
+                'error_code' => null,
+            ];
+        }
+    });
+
+    $profile = BotProfile::query()->create([
+        'handle' => 'default',
+        'name' => 'Default Bot',
+        'is_default' => true,
+        'active' => true,
+        'branding' => [],
+        'provider_overrides' => [],
+        'widget_settings' => [],
+        'support_settings' => [],
+        'lead_settings' => [],
+    ]);
+
+    $source = SourceConnection::query()->create([
+        'bot_profile_id' => $profile->id,
+        'name' => 'Vendors',
+        'driver' => 'statamic',
+        'active' => true,
+        'status' => 'ready',
+    ]);
+
+    $safeuemPage = KnowledgeDocument::query()->create([
+        'bot_profile_id' => $profile->id,
+        'source_connection_id' => $source->id,
+        'driver' => 'statamic',
+        'external_id' => 'entry:safeuem-brand',
+        'site' => 'default',
+        'locale' => 'default',
+        'title' => 'SafeUEM',
+        'url' => 'https://example.test/safeuem-brand',
+        'metadata' => ['type' => 'entry', 'collection' => 'pages', 'slug' => 'safeuem-brand'],
+        'content_hash' => sha1('safeuem-brand'),
+    ]);
+
+    $fleetPage = KnowledgeDocument::query()->create([
+        'bot_profile_id' => $profile->id,
+        'source_connection_id' => $source->id,
+        'driver' => 'statamic',
+        'external_id' => 'entry:fleet-device-management-brand',
+        'site' => 'default',
+        'locale' => 'default',
+        'title' => 'Fleet Device Management',
+        'url' => 'https://example.test/fleet-device-management-brand',
+        'metadata' => ['type' => 'entry', 'collection' => 'pages', 'slug' => 'fleet-device-management-brand'],
+        'content_hash' => sha1('fleet-device-management-brand'),
+    ]);
+
+    $safeuemTerm = KnowledgeDocument::query()->create([
+        'bot_profile_id' => $profile->id,
+        'source_connection_id' => $source->id,
+        'driver' => 'statamic',
+        'external_id' => 'taxonomy:vendors:safeuem',
+        'site' => 'default',
+        'locale' => 'default',
+        'title' => 'SafeUEM',
+        'url' => 'https://example.test/vendors/safeuem',
+        'metadata' => ['type' => 'taxonomy', 'handle' => 'vendors', 'slug' => 'safeuem'],
+        'content_hash' => sha1('safeuem-term'),
+    ]);
+
+    $fleetTerm = KnowledgeDocument::query()->create([
+        'bot_profile_id' => $profile->id,
+        'source_connection_id' => $source->id,
+        'driver' => 'statamic',
+        'external_id' => 'taxonomy:vendors:fleet-device-management',
+        'site' => 'default',
+        'locale' => 'default',
+        'title' => 'Fleet Device Management',
+        'url' => 'https://example.test/vendors/fleet-device-management',
+        'metadata' => ['type' => 'taxonomy', 'handle' => 'vendors', 'slug' => 'fleet-device-management'],
+        'content_hash' => sha1('fleet-term'),
+    ]);
+
+    KnowledgeChunk::query()->create([
+        'knowledge_document_id' => $safeuemPage->id,
+        'bot_profile_id' => $profile->id,
+        'site' => 'default',
+        'locale' => 'default',
+        'position' => 0,
+        'content' => 'SafeUEM landing page.',
+        'content_plain' => 'SafeUEM landing page.',
+        'metadata' => [
+            'title' => 'SafeUEM',
+            'url' => 'https://example.test/safeuem-brand',
+            'driver' => 'statamic',
+            'type' => 'entry',
+            'slug' => 'safeuem-brand',
+        ],
+    ]);
+
+    KnowledgeChunk::query()->create([
+        'knowledge_document_id' => $fleetPage->id,
+        'bot_profile_id' => $profile->id,
+        'site' => 'default',
+        'locale' => 'default',
+        'position' => 0,
+        'content' => 'Fleet landing page.',
+        'content_plain' => 'Fleet landing page.',
+        'metadata' => [
+            'title' => 'Fleet Device Management',
+            'url' => 'https://example.test/fleet-device-management-brand',
+            'driver' => 'statamic',
+            'type' => 'entry',
+            'slug' => 'fleet-device-management-brand',
+        ],
+    ]);
+
+    KnowledgeChunk::query()->create([
+        'knowledge_document_id' => $safeuemTerm->id,
+        'bot_profile_id' => $profile->id,
+        'site' => 'default',
+        'locale' => 'default',
+        'position' => 0,
+        'content' => 'SafeUEM is an MDM vendor.',
+        'content_plain' => 'SafeUEM is an MDM vendor.',
+        'metadata' => [
+            'title' => 'SafeUEM',
+            'url' => 'https://example.test/vendors/safeuem',
+            'driver' => 'statamic',
+            'type' => 'taxonomy',
+            'handle' => 'vendors',
+            'slug' => 'safeuem',
+        ],
+    ]);
+
+    KnowledgeChunk::query()->create([
+        'knowledge_document_id' => $fleetTerm->id,
+        'bot_profile_id' => $profile->id,
+        'site' => 'default',
+        'locale' => 'default',
+        'position' => 0,
+        'content' => 'Fleet Device Management is an MDM vendor.',
+        'content_plain' => 'Fleet Device Management is an MDM vendor.',
+        'metadata' => [
+            'title' => 'Fleet Device Management',
+            'url' => 'https://example.test/vendors/fleet-device-management',
+            'driver' => 'statamic',
+            'type' => 'taxonomy',
+            'handle' => 'vendors',
+            'slug' => 'fleet-device-management',
+        ],
+    ]);
+
+    $this->postJson('/aesircloud/statamic-ai-chatbot/chat', [
+        'profile' => 'default',
+        'site' => 'default',
+        'message' => 'Do you have any MDM vendors?',
+    ])
+        ->assertOk()
+        ->assertJsonPath('citations.0.title', 'SafeUEM')
+        ->assertJsonPath('citations.0.url', 'https://example.test/safeuem-brand')
+        ->assertJsonPath('citations.1.title', 'Fleet Device Management')
+        ->assertJsonPath('citations.1.url', 'https://example.test/fleet-device-management-brand');
+});

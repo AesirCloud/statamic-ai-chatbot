@@ -47,6 +47,10 @@ it('keeps global widget settings when profile overrides are null', function () {
         'eyebrow_label' => '3EYE AI',
         'primary_color' => '#000000',
         'accent_color' => '#dc6a2d',
+        'button_text_color' => '#1f2937',
+        'surface_color' => '#f3f4f6',
+        'surface_text_color' => '#4b5563',
+        'border_color' => '#d1d5db',
         'welcome_title' => 'How can we help?',
         'welcome_message' => 'Ask us anything.',
     ]);
@@ -85,5 +89,9 @@ it('keeps global widget settings when profile overrides are null', function () {
 
     expect($output)
         ->toContain('3EYE AI')
-        ->toContain('#000000');
+        ->toContain('#000000')
+        ->toContain('#1f2937')
+        ->toContain('#f3f4f6')
+        ->toContain('#4b5563')
+        ->toContain('#d1d5db');
 });

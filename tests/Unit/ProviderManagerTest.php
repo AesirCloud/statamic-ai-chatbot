@@ -25,3 +25,22 @@ it('builds ordered unique text provider candidates', function () {
         ['driver' => 'anthropic', 'model' => 'claude-sonnet-4-5'],
     ]);
 });
+
+it('normalizes known provider model identifiers to lowercase', function () {
+    config([
+        'statamic-ai-chatbot.providers.text.driver' => 'openai',
+        'statamic-ai-chatbot.providers.text.model' => 'GPT-5.4-NANO',
+        'statamic-ai-chatbot.providers.embeddings.driver' => 'openai',
+        'statamic-ai-chatbot.providers.embeddings.model' => 'TEXT-EMBEDDING-3-SMALL',
+    ]);
+
+    $manager = app(ProviderManager::class);
+
+    expect($manager->forText())->toBe([
+        'driver' => 'openai',
+        'model' => 'gpt-5.4-nano',
+    ])->and($manager->forEmbeddings())->toMatchArray([
+        'driver' => 'openai',
+        'model' => 'text-embedding-3-small',
+    ]);
+});

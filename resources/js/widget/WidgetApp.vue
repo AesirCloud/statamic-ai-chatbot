@@ -53,10 +53,20 @@ const messages = ref([
 ]);
 const actions = ref([]);
 
+function configuredValue(value, fallback) {
+    const normalized = String(value ?? '').trim();
+
+    return normalized || fallback;
+}
+
 const styleVars = computed(() => ({
-    '--chatbot-primary': props.config.primary_color ?? '#0f766e',
-    '--chatbot-accent': props.config.accent_color ?? '#f4a261',
-    '--chatbot-width': props.config.width ?? '26rem',
+    '--chatbot-primary': configuredValue(props.config.primary_color, '#0f766e'),
+    '--chatbot-accent': configuredValue(props.config.accent_color, '#f4a261'),
+    '--chatbot-button-text': configuredValue(props.config.button_text_color, '#14362f'),
+    '--chatbot-surface-muted': configuredValue(props.config.surface_color, '#f1f4f5'),
+    '--chatbot-text-base': configuredValue(props.config.surface_text_color, '#5b6670'),
+    '--chatbot-border-muted': configuredValue(props.config.border_color, '#d9e0e3'),
+    '--chatbot-width': configuredValue(props.config.width, '26rem'),
 }));
 
 const launcherLabel = computed(() => String(props.config.launcher_label ?? '').trim());
