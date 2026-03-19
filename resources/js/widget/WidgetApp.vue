@@ -116,6 +116,20 @@ function assistantContent(payload) {
     return payload?.message || 'I ran into an issue answering that. You can still contact support or leave your details for a follow-up.';
 }
 
+function openLink(url) {
+    if (!url) {
+        return;
+    }
+
+    const target = url.startsWith(window.location.origin) ? '_self' : '_blank';
+    const anchor = document.createElement('a');
+
+    anchor.href = url;
+    anchor.target = target;
+    anchor.rel = 'noopener noreferrer';
+    anchor.click();
+}
+
 async function sendMessage() {
     if (!draft.value.trim() || loading.value) {
         return;
@@ -204,9 +218,20 @@ async function submitLead() {
     }
 }
 
+function closeLeadForm() {
+    showLeadForm.value = false;
+}
+
 function applyAction(action) {
+    const url = action.url ?? (action.type === 'link' ? action.value : null);
+
     if (action.type === 'lead_capture') {
         showLeadForm.value = true;
+
+        if (action.value && !lead.value.message) {
+            lead.value.message = action.value;
+        }
+
         return;
     }
 
@@ -215,8 +240,18 @@ function applyAction(action) {
         return;
     }
 
-    if (action.url) {
-        window.open(action.url, '_blank', 'noopener,noreferrer');
+    if (action.type === 'phone' && action.value) {
+        window.location.href = `tel:${action.value}`;
+        return;
+    }
+
+    if (action.type === 'prompt' && action.value) {
+        draft.value = action.value;
+        return;
+    }
+
+    if (url) {
+        openLink(url);
     }
 }
 </script>
@@ -313,7 +348,16 @@ function applyAction(action) {
                         class="lead-form"
                         @submit.prevent="submitLead"
                     >
-                        <h3>Request a follow-up</h3>
+                        <div class="lead-form-header">
+                            <h3>Request a follow-up</h3>
+                            <button
+                                type="button"
+                                class="lead-form-dismiss"
+                                @click="closeLeadForm"
+                            >
+                                Not now
+                            </button>
+                        </div>
                         <input
                             v-model="lead.name"
                             type="text"

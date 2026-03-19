@@ -77,6 +77,7 @@ class ChatService
             (int) $response['confidence'],
             ['site' => $site, 'locale' => $locale]
         );
+        $response['next_actions'] = $this->normalizeActions($response['next_actions']);
 
         $this->storeMessage($conversation, 'assistant', (string) $response['message'], $response);
 
@@ -158,5 +159,92 @@ class ChatService
             $site,
             false
         );
+    }
+
+    /**
+     * @param  mixed  $actions
+     * @return array<int, array<string, mixed>>
+     */
+    protected function normalizeActions(mixed $actions): array
+    {
+        return collect(Arr::wrap($actions))
+            ->map(fn ($action) => is_array($action) ? $this->normalizeAction($action) : null)
+            ->filter()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  array<string, mixed>  $action
+     * @return array<string, mixed>|null
+     */
+    protected function normalizeAction(array $action): ?array
+    {
+        $type = Str::lower((string) ($action['type'] ?? ''));
+        $label = trim((string) ($action['label'] ?? $action['cta_label'] ?? 'Continue'));
+        $url = $this->filledString($action['url'] ?? null);
+        $value = $this->filledString($action['value'] ?? null);
+        $formId = $this->filledString($action['form_id'] ?? $action['form'] ?? null);
+        $payload = $this->filledString($action['payload'] ?? $action['instructions'] ?? null);
+
+        if ($type === 'url' && $value) {
+            $url = $value;
+            $type = 'link';
+        }
+
+        if (! $formId && in_array($type, ['form', 'form_fill'], true) && $value) {
+            $formId = $value;
+            $value = $payload;
+        }
+
+        if ($url) {
+            return [
+                'type' => 'link',
+                'label' => $label,
+                'url' => $url,
+            ];
+        }
+
+        if ($type === 'email' && $value) {
+            return [
+                'type' => 'email',
+                'label' => $label,
+                'value' => $value,
+            ];
+        }
+
+        if ($type === 'phone' && $value) {
+            return [
+                'type' => 'phone',
+                'label' => $label,
+                'value' => $value,
+            ];
+        }
+
+        if ($type === 'ask' && $payload) {
+            return [
+                'type' => 'prompt',
+                'label' => $label,
+                'value' => $payload,
+            ];
+        }
+
+        if ($type === 'lead_capture' || $formId || in_array($type, ['form', 'form_fill', 'schedule_call', 'support_request', 'human_handoff'], true)) {
+            return array_filter([
+                'type' => 'lead_capture',
+                'label' => $label,
+                'form_id' => $formId,
+                'value' => $payload,
+            ], fn ($item) => $item !== null && $item !== '');
+        }
+
+        return null;
+    }
+
+    protected function filledString(mixed $value): ?string
+    {
+        $value = is_string($value) ? trim($value) : null;
+
+        return filled($value) ? $value : null;
     }
 }

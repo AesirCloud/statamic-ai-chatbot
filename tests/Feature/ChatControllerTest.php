@@ -182,3 +182,64 @@ it('falls back to a valid statamic site when a stored profile site is stale', fu
         ->assertJsonPath('intent', 'knowledge')
         ->assertJsonPath('message', 'Matched: RAM Mounts');
 });
+
+it('normalizes assistant action payloads into clickable widget actions', function () {
+    $this->withoutMiddleware();
+
+    app()->instance(SupportAssistant::class, new class(app(ProviderManager::class)) extends SupportAssistant
+    {
+        public function respond(BotProfile $profile, string $message, \Illuminate\Support\Collection $chunks): array
+        {
+            return [
+                'message' => 'Here are some options.',
+                'intent' => 'knowledge',
+                'confidence' => 92,
+                'citations' => [],
+                'next_actions' => [
+                    [
+                        'label' => 'View RAM page',
+                        'type' => 'url',
+                        'value' => 'https://example.test/ram',
+                    ],
+                    [
+                        'label' => 'Contact us about RAM',
+                        'type' => 'form',
+                        'value' => 'ram_mounts_contact_us',
+                    ],
+                    [
+                        'label' => 'Clarify your request',
+                        'type' => 'ask',
+                        'payload' => 'Tell me which RAM Mounts product you need help with.',
+                    ],
+                ],
+                'lead_capture_fields' => [],
+                'status' => 'ok',
+                'error_code' => null,
+            ];
+        }
+    });
+
+    BotProfile::query()->create([
+        'handle' => 'default',
+        'name' => 'Default Bot',
+        'is_default' => true,
+        'active' => true,
+        'branding' => [],
+        'provider_overrides' => [],
+        'widget_settings' => [],
+        'support_settings' => [],
+        'lead_settings' => [],
+    ]);
+
+    $this->postJson('/aesircloud/statamic-ai-chatbot/chat', [
+        'profile' => 'default',
+        'message' => 'Do you work with RAM?',
+    ])
+        ->assertOk()
+        ->assertJsonPath('next_actions.0.type', 'link')
+        ->assertJsonPath('next_actions.0.url', 'https://example.test/ram')
+        ->assertJsonPath('next_actions.1.type', 'lead_capture')
+        ->assertJsonPath('next_actions.1.form_id', 'ram_mounts_contact_us')
+        ->assertJsonPath('next_actions.2.type', 'prompt')
+        ->assertJsonPath('next_actions.2.value', 'Tell me which RAM Mounts product you need help with.');
+});
