@@ -95,7 +95,9 @@ it('stores authored resources through cp endpoints', function () {
         ],
         'widget_settings' => [
             'position' => 'bottom-right',
+            'eyebrow_label' => null,
             'launcher_label' => '',
+            'primary_color' => null,
         ],
         'support_settings' => [
             'contact_url' => '/contact',
@@ -110,5 +112,9 @@ it('stores authored resources through cp endpoints', function () {
         ->assertOk()
         ->assertJsonPath('data.profiles.0.widget_settings.launcher_label', '');
 
-    expect(BotProfile::query()->firstOrFail()->widget_settings['launcher_label'])->toBe('');
+    $savedProfile = BotProfile::query()->firstOrFail();
+
+    expect($savedProfile->widget_settings['launcher_label'])->toBe('')
+        ->and(array_key_exists('eyebrow_label', $savedProfile->widget_settings))->toBeFalse()
+        ->and(array_key_exists('primary_color', $savedProfile->widget_settings))->toBeFalse();
 });

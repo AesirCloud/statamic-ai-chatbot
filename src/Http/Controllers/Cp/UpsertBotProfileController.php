@@ -72,11 +72,11 @@ class UpsertBotProfileController
                 'locale' => $validated['locale'] ?? null,
                 'is_default' => $validated['is_default'],
                 'active' => $validated['active'],
-                'branding' => Arr::get($validated, 'branding', []),
-                'provider_overrides' => Arr::get($validated, 'provider_overrides', []),
-                'widget_settings' => Arr::get($validated, 'widget_settings', []),
-                'support_settings' => Arr::get($validated, 'support_settings', []),
-                'lead_settings' => Arr::get($validated, 'lead_settings', []),
+                'branding' => $this->stripNullValues(Arr::get($validated, 'branding', [])),
+                'provider_overrides' => $this->stripNullValues(Arr::get($validated, 'provider_overrides', [])),
+                'widget_settings' => $this->stripNullValues(Arr::get($validated, 'widget_settings', [])),
+                'support_settings' => $this->stripNullValues(Arr::get($validated, 'support_settings', [])),
+                'lead_settings' => $this->stripNullValues(Arr::get($validated, 'lead_settings', [])),
                 'system_prompt' => $validated['system_prompt'] ?? null,
             ]
         );
@@ -97,5 +97,23 @@ class UpsertBotProfileController
         $settings = $settingsRepository->all();
         $settings['default_profile_handle'] = $handle;
         $settingsRepository->save($settings);
+    }
+
+    /**
+     * @param  array<string, mixed>  $values
+     * @return array<string, mixed>
+     */
+    protected function stripNullValues(array $values): array
+    {
+        return collect($values)
+            ->map(function ($value) {
+                if (is_array($value)) {
+                    return $this->stripNullValues($value);
+                }
+
+                return $value;
+            })
+            ->reject(fn ($value) => $value === null)
+            ->all();
     }
 }

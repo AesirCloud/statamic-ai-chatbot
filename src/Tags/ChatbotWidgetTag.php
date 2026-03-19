@@ -22,7 +22,7 @@ class ChatbotWidgetTag extends Tags
             'profile' => $profile,
             'config' => array_merge(
                 config('statamic-ai-chatbot.widget'),
-                Arr::get($profile->toArray(), 'widget_settings', []),
+                array_filter(Arr::get($profile->toArray(), 'widget_settings', []), fn ($value) => $value !== null),
                 [
                     'profile' => $profile->handle,
                     'site' => $profile->site,

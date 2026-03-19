@@ -91,7 +91,10 @@ class ChatService
             'citations' => $response['citations'],
             'next_actions' => $response['next_actions'],
             'lead_capture_fields' => $response['lead_capture_fields'],
-            'widget' => array_merge(config('statamic-ai-chatbot.widget'), $profile->widget_settings ?? []),
+            'widget' => array_merge(
+                config('statamic-ai-chatbot.widget'),
+                array_filter($profile->widget_settings ?? [], fn ($value) => $value !== null),
+            ),
         ];
     }
 
