@@ -934,14 +934,25 @@ async function saveSettings() {
 
             <div class="settings-grid">
                 <div class="stack">
-                    <h3>Addon defaults</h3>
+                    <section class="runtime-toggle">
+                        <div class="runtime-toggle__content">
+                            <p class="panel-kicker">Live status</p>
+                            <h3>{{ settingsForm.enabled ? 'Chatbot is enabled' : 'Chatbot is disabled' }}</h3>
+                            <p class="field-note">
+                                Disable this to hide the widget on the site and reject public chat or lead submissions.
+                                Click Save settings to apply the change.
+                            </p>
+                        </div>
 
-                    <div class="field-grid field-grid--4">
-                        <label class="field checkbox-field">
-                            <span>Chatbot enabled</span>
+                        <label class="runtime-toggle__switch">
+                            <span>{{ settingsForm.enabled ? 'Enabled' : 'Disabled' }}</span>
                             <input v-model="settingsForm.enabled" type="checkbox">
                         </label>
+                    </section>
 
+                    <h3>Addon defaults</h3>
+
+                    <div class="field-grid field-grid--3">
                         <label class="field">
                             <span>Default profile handle</span>
                             <input v-model="settingsForm.default_profile_handle" type="text">
@@ -965,10 +976,6 @@ async function saveSettings() {
                             <input v-model="settingsForm.providers.text.model" type="text">
                         </label>
                     </div>
-
-                    <p class="field-note">
-                        Turn this off to hide the widget and reject public chat or lead submissions until you re-enable it.
-                    </p>
 
                     <div class="field-grid field-grid--4">
                         <label class="field checkbox-field">
