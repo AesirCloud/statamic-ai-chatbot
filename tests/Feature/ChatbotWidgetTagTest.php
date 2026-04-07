@@ -95,3 +95,14 @@ it('keeps global widget settings when profile overrides are null', function () {
         ->toContain('#4b5563')
         ->toContain('#d1d5db');
 });
+
+it('does not render the widget when the chatbot is disabled globally', function () {
+    config()->set('statamic-ai-chatbot.enabled', false);
+
+    $tag = new ChatbotWidgetTag();
+    $tag->setContent('');
+    $tag->setContext([]);
+    $tag->setParameters([]);
+
+    expect($tag->widget())->toBe('');
+});

@@ -21,6 +21,7 @@ class SaveSettingsController
         $payload = $this->normalizePayload($request, $settingsRepository);
 
         $validated = Validator::make($payload, [
+            'enabled' => ['required', 'boolean'],
             'default_profile_handle' => ['nullable', 'string', 'max:255'],
             'providers' => ['required', 'array'],
             'providers.text' => ['required', 'array'],

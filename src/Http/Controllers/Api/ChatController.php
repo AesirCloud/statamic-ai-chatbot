@@ -10,6 +10,21 @@ class ChatController
 {
     public function __invoke(Request $request, ChatService $chatService): JsonResponse
     {
+        if (! config('statamic-ai-chatbot.enabled', true)) {
+            return response()->json([
+                'conversation_id' => null,
+                'message' => 'The chatbot is currently turned off.',
+                'intent' => 'disabled',
+                'confidence' => 0,
+                'status' => 'disabled',
+                'error_code' => 'chatbot_disabled',
+                'citations' => [],
+                'next_actions' => [],
+                'lead_capture_fields' => [],
+                'widget' => config('statamic-ai-chatbot.widget', []),
+            ], 503);
+        }
+
         $validated = $request->validate([
             'profile' => ['nullable', 'string'],
             'site' => ['nullable', 'string'],

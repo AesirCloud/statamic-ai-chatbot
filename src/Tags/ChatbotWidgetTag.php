@@ -12,6 +12,10 @@ class ChatbotWidgetTag extends Tags
 
     public function widget(): string
     {
+        if (! config('statamic-ai-chatbot.enabled', true)) {
+            return '';
+        }
+
         $profile = app(BotProfileResolver::class)->resolve(
             handle: $this->params->get('profile', config('statamic-ai-chatbot.default_profile_handle')),
             site: $this->params->get('site'),

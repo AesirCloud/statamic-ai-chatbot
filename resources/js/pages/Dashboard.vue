@@ -260,6 +260,7 @@ function clone(value) {
 function normalizeSettings(settings) {
     const next = clone(settings ?? {});
 
+    next.enabled ??= true;
     next.providers ??= {};
     next.providers.text ??= { driver: 'openai', model: 'gpt-5-mini' };
     next.providers.embeddings ??= { driver: 'openai', model: 'text-embedding-3-small', dimensions: 1536, enabled: true };
@@ -935,7 +936,12 @@ async function saveSettings() {
                 <div class="stack">
                     <h3>Addon defaults</h3>
 
-                    <div class="field-grid field-grid--3">
+                    <div class="field-grid field-grid--4">
+                        <label class="field checkbox-field">
+                            <span>Chatbot enabled</span>
+                            <input v-model="settingsForm.enabled" type="checkbox">
+                        </label>
+
                         <label class="field">
                             <span>Default profile handle</span>
                             <input v-model="settingsForm.default_profile_handle" type="text">
@@ -959,6 +965,10 @@ async function saveSettings() {
                             <input v-model="settingsForm.providers.text.model" type="text">
                         </label>
                     </div>
+
+                    <p class="field-note">
+                        Turn this off to hide the widget and reject public chat or lead submissions until you re-enable it.
+                    </p>
 
                     <div class="field-grid field-grid--4">
                         <label class="field checkbox-field">

@@ -43,6 +43,22 @@ it('saves settings when the launcher label is updated or cleared', function () {
         ->and(data_get($stored, 'ai.providers'))->toBeNull();
 });
 
+it('saves the global chatbot enabled state', function () {
+    $this->withoutMiddleware();
+
+    $payload = app(SettingsRepository::class)->all();
+    $payload['enabled'] = false;
+
+    $this->postJson('/cp/aesircloud/statamic-ai-chatbot/settings/save', $payload)
+        ->assertOk()
+        ->assertJsonPath('data.settings.enabled', false);
+
+    $stored = ChatbotSetting::query()->firstOrFail()->payload;
+
+    expect(data_get($stored, 'enabled'))->toBeFalse()
+        ->and(config('statamic-ai-chatbot.enabled'))->toBeFalse();
+});
+
 it('normalizes known provider model ids when saving settings', function () {
     $this->withoutMiddleware();
 

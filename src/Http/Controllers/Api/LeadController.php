@@ -15,6 +15,14 @@ class LeadController
         BotProfileResolver $profileResolver,
         LeadDestinationManager $leadDestinationManager,
     ): JsonResponse {
+        if (! config('statamic-ai-chatbot.enabled', true)) {
+            return response()->json([
+                'message' => 'The chatbot is currently turned off.',
+                'status' => 'disabled',
+                'error_code' => 'chatbot_disabled',
+            ], 503);
+        }
+
         $validated = $request->validate([
             'profile' => ['nullable', 'string'],
             'site' => ['nullable', 'string'],

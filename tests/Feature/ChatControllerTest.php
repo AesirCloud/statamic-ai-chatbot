@@ -1,6 +1,7 @@
 <?php
 
 use AesirCloud\StatamicAiChatbot\Models\BotProfile;
+use AesirCloud\StatamicAiChatbot\Models\ChatConversation;
 use AesirCloud\StatamicAiChatbot\Models\FaqItem;
 use AesirCloud\StatamicAiChatbot\Models\KnowledgeChunk;
 use AesirCloud\StatamicAiChatbot\Models\KnowledgeDocument;
@@ -10,6 +11,23 @@ use AesirCloud\StatamicAiChatbot\Support\Config\ProviderManager;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
+
+it('returns a disabled response without creating a conversation when the chatbot is turned off', function () {
+    $this->withoutMiddleware();
+
+    config()->set('statamic-ai-chatbot.enabled', false);
+
+    $this->postJson('/aesircloud/statamic-ai-chatbot/chat', [
+        'profile' => 'default',
+        'message' => 'Are you there?',
+    ])
+        ->assertStatus(503)
+        ->assertJsonPath('status', 'disabled')
+        ->assertJsonPath('error_code', 'chatbot_disabled')
+        ->assertJsonPath('message', 'The chatbot is currently turned off.');
+
+    expect(ChatConversation::query()->count())->toBe(0);
+});
 
 it('returns curated faq answers without invoking the ai assistant path', function () {
     $this->withoutMiddleware();

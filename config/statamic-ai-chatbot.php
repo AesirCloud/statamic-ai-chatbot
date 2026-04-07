@@ -1,6 +1,8 @@
 <?php
 
 return [
+    'enabled' => (bool) env('STATAMIC_AI_CHATBOT_ENABLED', true),
+
     'default_profile_handle' => env('STATAMIC_AI_CHATBOT_DEFAULT_PROFILE', 'default'),
 
     'providers' => [

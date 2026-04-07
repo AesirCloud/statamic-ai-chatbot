@@ -114,6 +114,14 @@ async function parseJsonResponse(response) {
     return payload;
 }
 
+function friendlyErrorMessage(error, fallback) {
+    const message = String(error?.message ?? '').trim();
+
+    return message && message !== 'Request failed.'
+        ? message
+        : fallback;
+}
+
 function assistantContent(payload) {
     if (payload?.status === 'degraded') {
         if (payload?.error_code === 'ai_provider_misconfigured') {
@@ -186,7 +194,10 @@ async function sendMessage() {
     } catch (error) {
         messages.value.push({
             role: 'assistant',
-            content: 'I ran into an issue answering that. You can still contact support or leave your details for a follow-up.',
+            content: friendlyErrorMessage(
+                error,
+                'I ran into an issue answering that. You can still contact support or leave your details for a follow-up.',
+            ),
         });
     } finally {
         loading.value = false;
@@ -221,7 +232,10 @@ async function submitLead() {
     } catch (error) {
         messages.value.push({
             role: 'assistant',
-            content: 'I could not submit your details just now. Please try again or use one of the support links below.',
+            content: friendlyErrorMessage(
+                error,
+                'I could not submit your details just now. Please try again or use one of the support links below.',
+            ),
         });
     } finally {
         loading.value = false;
